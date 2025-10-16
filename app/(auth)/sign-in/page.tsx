@@ -7,7 +7,7 @@ export default function SignInPage(){
   const supabase = supabaseBrowser()
   const router = useRouter()
   const [email,setEmail] = useState('contato@libertrendz.eu')
-  const [password,setPassword] = useState('') // senha definida no Auth
+  const [password,setPassword] = useState('')
   const [err,setErr] = useState<string|undefined>()
 
   const onSubmit = async (e: React.FormEvent) => {
