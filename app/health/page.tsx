@@ -7,11 +7,9 @@ export default function Health(){
 
   useEffect(()=>{(async()=>{
     const out: string[] = []
-
     out.push('ENV:')
     out.push(`URL=${process.env.NEXT_PUBLIC_SUPABASE_URL ? 'ok' : 'MISSING'}`)
     out.push(`ANON=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'ok' : 'MISSING'}`)
-
     try {
       const supabase = supabaseBrowser()
       const { data: { user }, error } = await supabase.auth.getUser()
@@ -20,7 +18,6 @@ export default function Health(){
     } catch(e:any){
       out.push(`auth.getUser THROW: ${e?.message||String(e)}`)
     }
-
     try {
       const supabase = supabaseBrowser()
       const { data, error } = await supabase.from('congregacoes').select('id,nome').limit(1)
@@ -29,10 +26,8 @@ export default function Health(){
     } catch(e:any){
       out.push(`select congregacoes THROW: ${e?.message||String(e)}`)
     }
-
     setLog(out.join('\n'))
   })()},[])
-
   return (
     <pre className="whitespace-pre-wrap text-sm p-4 border rounded max-w-3xl mx-auto mt-6">{log}</pre>
   )
