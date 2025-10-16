@@ -8,12 +8,10 @@ export default function Health(){
   useEffect(()=>{(async()=>{
     const out: string[] = []
 
-    // 1) Env
     out.push('ENV:')
     out.push(`URL=${process.env.NEXT_PUBLIC_SUPABASE_URL ? 'ok' : 'MISSING'}`)
     out.push(`ANON=${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'ok' : 'MISSING'}`)
 
-    // 2) Auth user
     try {
       const supabase = supabaseBrowser()
       const { data: { user }, error } = await supabase.auth.getUser()
@@ -23,7 +21,6 @@ export default function Health(){
       out.push(`auth.getUser THROW: ${e?.message||String(e)}`)
     }
 
-    // 3) Ping uma tabela “aberta” (congregacoes) só pra ver RLS
     try {
       const supabase = supabaseBrowser()
       const { data, error } = await supabase.from('congregacoes').select('id,nome').limit(1)
