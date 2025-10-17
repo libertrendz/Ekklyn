@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { supabaseBrowser } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 const schema = z.object({
   nome: z.string().min(2, 'Informe nome'),
@@ -22,10 +23,12 @@ type MembroRow = {
 }
 
 export default function MeusDadosPage(){
+  const router = useRouter()
   const supabase = useMemo(() => supabaseBrowser(), [])
 
   const [membroId,setMembroId]=useState<string>()
   const [congregacoes,setCongregacoes]=useState<CongregacaoRow[]>([])
+  const [info,setInfo]=useState<string>('')
 
   const {
     register, handleSubmit, reset, watch, setValue,
@@ -33,11 +36,16 @@ export default function MeusDadosPage(){
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   useEffect(()=>{(async()=>{
-    // 1) usuário logado
+    // Garantir sessão; se não houver, mandar para login
     const { data: { user } } = await supabase.auth.getUser()
-    if(!user) return
+    if(!user){
+      setInfo('sem sessão — redirecionando para /sign-in')
+      router.push('/sign-in')
+      return
+    }
+    setInfo(`user ok: ${user.id.slice(0,8)}…`)
 
-    // 2) membro desse usuário
+    // 1) Carregar membro
     const { data: membro, error: mErr } = await supabase
       .from('membros')
       .select('id,nome,telefone,congregacao_id')
@@ -45,9 +53,7 @@ export default function MeusDadosPage(){
       .single<MembroRow>()
     if(mErr) {
       console.error(mErr)
-      return
-    }
-    if(membro){
+    } else if(membro){
       setMembroId(membro.id)
       const tel = membro.telefone
       const isPT = tel?.startsWith('+351')
@@ -60,17 +66,22 @@ export default function MeusDadosPage(){
       })
     }
 
-    // 3) congregações
+    // 2) Carregar congregações (fora do early-return anterior)
     const { data: rows, error: cErr } = await supabase
       .from('congregacoes')
       .select('id,nome')
       .order('nome')
+
     if(cErr){
       console.error(cErr)
+      setInfo(prev => `${prev} | congregacoes: ERROR ${cErr.message}`)
+      setCongregacoes([])
     } else {
-      setCongregacoes((rows as CongregacaoRow[]) || [])
+      const list = (rows as CongregacaoRow[]) || []
+      setCongregacoes(list)
+      setInfo(prev => `${prev} | congregacoes: ${list.length}`)
     }
-  })()},[reset, supabase])
+  })()},[reset, router, supabase])
 
   const onSubmit = async (values: FormData) => {
     if(!membroId) return
@@ -96,6 +107,7 @@ export default function MeusDadosPage(){
   return (
     <div className="mx-auto max-w-5xl p-4 space-y-6">
       <h2 className="text-xl font-semibold">Meus dados</h2>
+      {!!info && <p className="text-xs text-slate-500">diag: {info}</p>}
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 max-w-xl">
         <label className="grid gap-1">
@@ -127,6 +139,9 @@ export default function MeusDadosPage(){
             onChange={(e)=>setValue('congregacao_id', e.target.value || null)}
           >
             <option value="">Selecionar…</option>
+            {congregacoes.length === 0 && (
+              <option value="" disabled>(Nenhuma congregação cadastrada)</option>
+            )}
             {congregacoes.map(c=> <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
         </label>
