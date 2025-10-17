@@ -32,17 +32,27 @@ export default function Health(){
         const u = (urows?.[0] as UsuarioRow | undefined) || null
         out.push(`usuarios row: ${u ? 'FOUND' : 'NOT FOUND'} | igreja_id: ${u?.igreja_id ?? 'null'}`)
 
-        // 2) Count de congregacoes (via RLS)
-        const { data: crows, error: cerr } = await supabase
-          .from('congregacoes')
-          .select('id', { count: 'exact', head: true })
-        if (cerr) out.push(`select congregacoes ERROR: ${cerr.message}`)
-        out.push(`congregacoes count (RLS): ${crows === null ? 'null' : (cerr ? 'ERR' : 'ok')} | (count not returned by head, check error msg above)`)
-      }
-    } catch(e: unknown){
-      const msg = e instanceof Error ? e.message : String(e)
-      out.push(`THROW: ${msg}`)
+        // 2) Ping congregacoes (sem head; vamos listar)
+try {
+  const { data, error } = await supabase
+    .from('congregacoes')
+    .select('id,nome')
+    .order('nome')
+    .limit(10)
+
+  if (error) {
+    out.push(`select congregacoes ERROR: ${error.message}`)
+  } else {
+    out.push(`congregacoes: ${data?.length ?? 0} rows`)
+    if (data && data.length) {
+      out.push(`nomes: ${data.map(r => r.nome).join(', ')}`)
     }
+  }
+} catch(e: unknown){
+  const msg = e instanceof Error ? e.message : String(e)
+  out.push(`select congregacoes THROW: ${msg}`)
+}
+
 
     setLog(out.join('\n'))
   })()},[supabase, url, anon])
