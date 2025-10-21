@@ -38,31 +38,37 @@ export default function NovoAnuncio() {
       if (!user) { router.replace('/sign-in'); return }
 
       // igreja_id via usuarios
-      const { data: urows } = await supabase
+      const { data: urows, error: uErr } = await supabase
         .from('usuarios')
         .select('id,igreja_id')
         .eq('id', user.id)
         .limit(1)
+      if (uErr) { setInfo(`Erro usuarios: ${uErr.message}`); return }
       const u = (urows?.[0] as Usuario | undefined)
       if (!u?.igreja_id) { setInfo('Erro: sem igreja_id no perfil'); return }
       setIgrejaId(u.igreja_id)
 
-      const { data: cats } = await supabase
+      const { data: cats, error: cErr } = await supabase
         .from('categorias')
         .select('id,nome')
         .order('nome')
+      if (cErr) { setInfo(`Erro categorias: ${cErr.message}`); return }
       setCategorias((cats as Categoria[]) || [])
     })()
   }, [router, supabase])
 
   const onSubmit = async (v: FormData) => {
-    if (!igrejaId) return
-    const preco_cents = v.preco ? Math.round(parseFloat(v.preco.replace(',', '.')) * 100) : null
+    if (!igrejaId) { alert('Perfil sem igreja. Tente relogar.'); return }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { alert('Sessão expirada. Faça login novamente.'); router.replace('/sign-in'); return }
+
+    const precoNum = v.preco ? Number(String(v.preco).replace(',', '.')) : NaN
+    const preco_cents = Number.isFinite(precoNum) ? Math.round(precoNum * 100) : null
     const whatsapp = v.whatsapp ? v.whatsapp.replace(/\s/g, '') : null
 
     const { error } = await supabase.from('anuncios').insert({
       igreja_id: igrejaId,
-      usuario_id: (await supabase.auth.getUser()).data.user?.id!,
+      usuario_id: user.id,                    // <<< corrigido: sem non-null assertion
       titulo: v.titulo,
       descricao: v.descricao ?? null,
       categoria_id: v.categoria_id ?? null,
@@ -71,7 +77,7 @@ export default function NovoAnuncio() {
       cidade: v.cidade ?? null,
       estado: v.estado ?? null,
       publicado: v.publicar ?? false,
-      aprovado: false,         // admin aprova no painel
+      aprovado: false,
       destaque: false
     })
     if (error) { alert(error.message); return }
